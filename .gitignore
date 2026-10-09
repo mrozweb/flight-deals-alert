@@ -1,0 +1,27 @@
+# Never commit these files!
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE settings
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables (SECRETS!)
+.env
+.env.local
+
+# Database cache
+*.sqlite
+*.sqlite3
+serp_fly_cache.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db

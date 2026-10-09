@@ -1,0 +1,55 @@
+name: Scheduled Flight Deal Check
+
+on:
+  schedule:
+    # ╔═══════════════════════════════════════════════════════════════╗
+    # ║  CHANGE THE LINE BELOW to set when your script runs          ║
+    # ║                                                                ║
+    # ║  Format:  'MINUTE HOUR * * *'                                  ║
+    # ║                                                                ║
+    # ║  Examples:                                                     ║
+    # ║    '0 9 * * *'   = 9:00 AM UTC daily                          ║
+    # ║    '30 14 * * *' = 2:30 PM UTC daily                          ║
+    # ║    '0 0 * * *'   = Midnight UTC daily                         ║
+    # ║                                                                ║
+    # ║  Use https://time.is/UTC to find your local time in UTC       ║
+    # ╚═══════════════════════════════════════════════════════════════╝
+    - cron: '0 9 * * *'
+
+  # This adds a "Run workflow" button so you can test manually
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run flight deal alert
+        env:
+          ENV_SERP_API_KEY: ${{ secrets.ENV_SERP_API_KEY }}
+          ENV_SERP_ENDPOINT_GET: ${{ secrets.ENV_SERP_ENDPOINT_GET }}
+          ENV_SHEETY_ENDPOINT_GET: ${{ secrets.ENV_SHEETY_ENDPOINT_GET }}
+          ENV_SHEETY_ENDPOINT_PUT: ${{ secrets.ENV_SHEETY_ENDPOINT_PUT }}
+          ENV_SHEETY_ENDPOINT_POST: ${{ secrets.ENV_SHEETY_ENDPOINT_POST }}
+          ENV_SHEETY_USERNAME: ${{ secrets.ENV_SHEETY_USERNAME }}
+          ENV_SHEETY_PASSWORD: ${{ secrets.ENV_SHEETY_PASSWORD }}
+          ENV_SHEETY_AUTH: ${{ secrets.ENV_SHEETY_AUTH }}
+          ENV_EMAIL_FROM: ${{ secrets.ENV_EMAIL_FROM }}
+          ENV_EMAIL_TO: ${{ secrets.ENV_EMAIL_TO }}
+          ENV_EMAIL_PASSWORD: ${{ secrets.ENV_EMAIL_PASSWORD }}
+          ENV_CURRENCY: ${{ secrets.ENV_CURRENCY }}
+
+        run: python main.py
