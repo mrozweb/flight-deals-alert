@@ -48,7 +48,6 @@ jobs:
           ENV_SHEETY_PASSWORD: ${{ secrets.ENV_SHEETY_PASSWORD }}
           ENV_SHEETY_AUTH: ${{ secrets.ENV_SHEETY_AUTH }}
           ENV_EMAIL_FROM: ${{ secrets.ENV_EMAIL_FROM }}
-          ENV_EMAIL_TO: ${{ secrets.ENV_EMAIL_TO }}
           ENV_EMAIL_PASSWORD: ${{ secrets.ENV_EMAIL_PASSWORD }}
           ENV_CURRENCY: ${{ secrets.ENV_CURRENCY }}
 

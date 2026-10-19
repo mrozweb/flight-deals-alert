@@ -137,7 +137,6 @@ Since `.env` is not pushed, add each variable as a GitHub Secret:
 | `ENV_SHEETY_PASSWORD` | your Sheety password |
 | `ENV_SHEETY_AUTH` | your basic auth token |
 | `ENV_EMAIL_FROM` | your email |
-| `ENV_EMAIL_TO` | recipient email |
 | `ENV_EMAIL_PASSWORD` | your app password |
 | `ENV_CURRENCY` | `EUR` / `USD` / `GBP` |
 
@@ -237,7 +236,6 @@ Contributions are welcome!
 | `ENV_SHEETY_PASSWORD` | Sheety password | `your_password` |
 | `ENV_SHEETY_AUTH` | Base64 basic auth token | `base64string` |
 | `ENV_EMAIL_FROM` | Sender email address | `you@gmail.com` |
-| `ENV_EMAIL_TO` | Recipient email address | `recipient@gmail.com` |
 | `ENV_EMAIL_PASSWORD` | Email app password | `xxxx xxxx xxxx xxxx` |
 | `ENV_CURRENCY` | Currency for price comparison | `EUR`, `USD`, `GBP` |
 ### 1. Clone the Repository
