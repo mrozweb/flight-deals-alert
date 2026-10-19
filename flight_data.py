@@ -1,5 +1,5 @@
 class FlightData:
-    def __init__(self, price, origin_airport, destination_airport, out_date, out_time, return_date):
+    def __init__(self, price, origin_airport, destination_airport, out_date, out_time, return_date, stops):
         # This class is responsible for structuring the flight data.
         self.price = price
         self.origin_airport = origin_airport
@@ -7,9 +7,11 @@ class FlightData:
         self.out_date = out_date
         self.out_time = out_time
         self.return_date = return_date
+        self.stops = stops
 
 def find_cheapest_flight(data, return_date):
     # Parse the JSON data and find the cheapest flight.
+
     # Helper return placeholder object instead of None
     def _empty_flight():
         return FlightData(
@@ -19,6 +21,7 @@ def find_cheapest_flight(data, return_date):
             out_date="N/A",
             out_time="N/A",
             return_date=return_date,
+            stops="N/A",
         )
 
     # ========== Handle empty data =======================================
@@ -66,6 +69,7 @@ def find_cheapest_flight(data, return_date):
 
     # ========== Extract flight details =======================================
     try:
+        segments = cheapest_flight_data["flights"]
         price = cheapest_flight_data["price"]
         origin_airport = cheapest_flight_data["flights"][0]["departure_airport"]["id"]
         destination_airport = cheapest_flight_data["flights"][-1]["arrival_airport"]["id"]
@@ -74,8 +78,8 @@ def find_cheapest_flight(data, return_date):
         departure_datetime = cheapest_flight_data["flights"][0]["departure_airport"]["time"]
 
         # Split into date and time
-        parts = departure_datetime.split(" ")
-        out_date = parts[0]
+        parts = departure_datetime.strip().split()
+        out_date = parts[0] if parts else "N/A"
         out_time = parts[1] if len(parts) > 1 else "N/A"
 
         print(
@@ -83,15 +87,19 @@ def find_cheapest_flight(data, return_date):
             f"destination={destination_airport}, out_date={out_date}, out_time={out_time}"
         )
 
+        # A flight with 2 segments will have 1 stop
+        nr_stops = len(segments) - 1
+
         return FlightData(
             price=price,
             origin_airport=origin_airport,
             destination_airport=destination_airport,
             out_date=out_date,
             out_time=out_time,
-            return_date=return_date
+            return_date=return_date,
+            stops=nr_stops,
         )
 
-    except (KeyError, IndexError) as e:
+    except (KeyError, IndexError, AttributeError) as e:
         print(f"Error extracting flight data: {e}")
         return _empty_flight()
