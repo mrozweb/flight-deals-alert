@@ -4,7 +4,6 @@ from data_manager import DataManager
 from flight_data import find_cheapest_flight
 from flight_search import FlightSearch
 from notification_manager import NotificationManager
-# from pprint import pprint
 from datetime import datetime, timedelta
 
 load_dotenv(dotenv_path=".env")
@@ -25,29 +24,40 @@ print("=" * 70)
 # ========== FETCH DATA =======================================
 print("\nFetching data from spreadsheet...")
 sheet_data = data_manager.get_data()
+users = data_manager.get_customer_emails()
 
 if not sheet_data:
     print("No data found in spreadsheet. Exiting.")
     exit(1)
 
+# Extract emails
+user_emails = [
+    user["whatIsYourEmail?"]
+    for user in users
+    if user.get("whatIsYourEmail?")
+]
+
+# Remove duplication if someone signed twice
+user_emails = list(dict.fromkeys(user_emails))
+
+if not user_emails:
+    print("No subscribers - emails will be skipped")
+
 # ========== SET THE DATES =======================================
-tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+tomorrow        = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 two_weeks_later = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
 
 print(f"Searching: {tomorrow} to {two_weeks_later}")
-
-# ========== PRINT DATA =======================================
-# pprint(sheet_data[2])
 
 # ========== SEARCH EACH CITY =======================================
 ORIGIN_CITY_IATA = "LHR"
 
 for row in sheet_data:
-    row_id = row.get("id")
+    row_id    = row.get("id")
     iata_code = row.get("iataCode")
-    city = row.get("city")
+    city      = row.get("city")
 
-    # Skip origin_city_code in loop
+    # Skip origin city
     if iata_code == ORIGIN_CITY_IATA:
         print("\n" + "=" * 70)
         print(f"Skipping: {iata_code} {city}")
@@ -64,44 +74,115 @@ for row in sheet_data:
         print(f"Skipping: {city} invalid price")
         continue
 
-    # Get the cheapest flight
-    data = flight_search.check_flights(
+    print("\n" + "=" * 70)
+    print(f" Route: {ORIGIN_CITY_IATA} → {iata_code} ({city})")
+    print("=" * 70)
+
+    # ============ 1) DIRECT (NONSTOP) FLIGHTS ============
+    direct_data = flight_search.check_flights(
         origin_city_code=ORIGIN_CITY_IATA,
         destination_city_code=iata_code,
         from_time=tomorrow,
         to_time=two_weeks_later,
+        is_direct=True,
     )
-    # pprint(data)
 
-    # Convert dict → FlightData object
-    cheapest_flight = find_cheapest_flight(data, return_date=two_weeks_later)
+    # Inline filter: keep only flights with 0 stops
+    raw_direct = direct_data.get("best_flights", []) + direct_data.get("other_flights", [])
+    direct_only = [
+        f for f in raw_direct
+        if f.get("price") is not None and len(f.get("flights", [])) - 1 == 0
+    ]
 
-    if cheapest_flight and cheapest_flight.price != "N/A":
-        new_price = float(cheapest_flight.price)
+    if direct_only:
+        cheapest_direct = find_cheapest_flight(
+            {"best_flights": direct_only, "other_flights": []},
+            return_date=two_weeks_later,
+        )
+    else:
+        cheapest_direct = find_cheapest_flight(None, return_date=two_weeks_later)
 
-        print(f"Cheapest: {new_price:.0f} {flight_search.currency}")
-        print(f"Route: {cheapest_flight.origin_airport} → {cheapest_flight.destination_airport}")
-        print(f"Outbound: {cheapest_flight.out_date} - {cheapest_flight.out_time}")
-        # print(f"Return: {cheapest_flight.return_date}")
+    if cheapest_direct.price != "N/A":
+        direct_price = float(cheapest_direct.price)
+        print(f" Cheapest DIRECT:   {direct_price:.0f} {flight_search.currency} | "
+              f"{cheapest_direct.out_date} {cheapest_direct.out_time} | "
+              f"{cheapest_direct.stops} stop(s)")
 
-        # Only update if the new price is cheaper
-        if new_price < current_price:
-            saving = current_price - new_price
-            print(f"Deal! Save: {saving:.0f} {flight_search.currency}")
+        if direct_price < current_price:
+            saving = current_price - direct_price
+            print(f" DIRECT deal! Save: {saving:.0f} {flight_search.currency}")
 
-            data_manager.update_lowest_price(row_id=row_id, new_price=new_price)
+            data_manager.update_lowest_price(row_id=row_id, new_price=direct_price)
 
             notification_manager.send_deal_email(
+                emails_to=user_emails,
                 origin_city_iata=ORIGIN_CITY_IATA,
                 city=city,
                 iata_code=iata_code,
                 old_price=current_price,
-                new_price=new_price,
-                out_date=cheapest_flight.out_date,
-                out_time=cheapest_flight.out_time,
+                new_price=direct_price,
+                out_date=cheapest_direct.out_date,
+                out_time=cheapest_direct.out_time,
+                stops=cheapest_direct.stops,
+            )
+            current_price = direct_price
+        else:
+            print(f" No direct deal — sheet {current_price:.0f} "
+                  f"{flight_search.currency} is cheaper.")
+    else:
+        print(" No direct (nonstop) flights found")
+
+    # ============ 2) INDIRECT (1+ STOPS) FLIGHTS ============
+    indirect_data = flight_search.check_flights(
+        origin_city_code=ORIGIN_CITY_IATA,
+        destination_city_code=iata_code,
+        from_time=tomorrow,
+        to_time=two_weeks_later,
+        is_direct=False,
+    )
+
+    # Inline filter: keep only flights with 1+ stops
+    raw_list = indirect_data.get("best_flights", []) + indirect_data.get("other_flights", [])
+    indirect_only = [
+        f for f in raw_list
+        if f.get("price") is not None and len(f.get("flights", [])) - 1 >= 1
+    ]
+
+    if indirect_only:
+        cheapest_indirect = find_cheapest_flight(
+            {"best_flights": indirect_only, "other_flights": []},
+            return_date=two_weeks_later,
+        )
+    else:
+        cheapest_indirect = find_cheapest_flight(None, return_date=two_weeks_later)
+
+    if cheapest_indirect.price != "N/A":
+        indirect_price = float(cheapest_indirect.price)
+        print(f" Cheapest INDIRECT: {indirect_price:.0f} {flight_search.currency} | "
+              f"{cheapest_indirect.out_date} {cheapest_indirect.out_time} | "
+              f"{cheapest_indirect.stops} stop(s)")
+
+        if indirect_price < current_price:
+            saving = current_price - indirect_price
+            print(f" INDIRECT deal! Save: {saving:.0f} {flight_search.currency}")
+
+            data_manager.update_lowest_price(row_id=row_id, new_price=indirect_price)
+
+            notification_manager.send_deal_email(
+                emails_to=user_emails,
+                origin_city_iata=ORIGIN_CITY_IATA,
+                city=city,
+                iata_code=iata_code,
+                old_price=current_price,
+                new_price=indirect_price,
+                out_date=cheapest_indirect.out_date,
+                out_time=cheapest_indirect.out_time,
+                stops=cheapest_indirect.stops,
             )
         else:
-            print("No deal - current price is better.")
+            print(f" No indirect deal — sheet {current_price:.0f} "
+                  f"{flight_search.currency} is cheaper.")
     else:
-        print(f"No cheapest flight found")
+        print(" No indirect flights found")
+
     print("\n" + "=" * 70)
