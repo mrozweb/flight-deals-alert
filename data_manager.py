@@ -11,8 +11,11 @@ class DataManager:
 
         # Sheety API endpoints
         self.SHEETY_ENDPOINT_GET = os.getenv("ENV_SHEETY_ENDPOINT_GET")
+        self.SHEETY_ENDPOINT_USERS = os.getenv("ENV_SHEETY_ENDPOINT_USERS_GET")
         self.SHEETY_ENDPOINT_PUT = os.getenv("ENV_SHEETY_ENDPOINT_PUT")
         self.SHEETY_ENDPOINT_POST = os.getenv("ENV_SHEETY_ENDPOINT_POST")
+        self.SHEETY_USERNAME = os.getenv("ENV_SHEETY_USERNAME")
+        self.SHEETY_PASSWORD = os.getenv("ENV_SHEETY_PASSWORD")
         self.SHEETY_AUTH = os.getenv("ENV_SHEETY_AUTH")
 
         # Headers for Sheety API
@@ -26,6 +29,7 @@ class DataManager:
 
         # Store the sheet data
         self.sheet_data = None
+        self.sheet_data_users = None
 
     def get_data(self):
         """
@@ -48,7 +52,23 @@ class DataManager:
             return self.sheet_data
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching data: {e}")
+            print(f"❌ Error fetching price data: {e}")
+            return []
+
+    def get_customer_emails(self):
+        try:
+            response = requests.get(
+                url=self.SHEETY_ENDPOINT_USERS,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+            self.sheet_data_users = response.json()["users"]
+
+            print(f"\nFetched {len(self.sheet_data_users)} user record(s)")
+            return self.sheet_data_users
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error fetching users data: {e}")
             return []
 
     def update_lowest_price(self, row_id, new_price):
